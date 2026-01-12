@@ -1,0 +1,21 @@
+# Rust build artifacts
+target/
+
+# Lockfile (ignored for now)
+Cargo.lock
+
+# VoxLinux runtime state
+/var/lib/voxlinux/
+/var/lib/voxlinux/state.json
+
+# Logs
+*.log
+
+# Editor junk
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS junk
+.DS_Store
