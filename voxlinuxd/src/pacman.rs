@@ -7,9 +7,17 @@ pub fn pacman_broken() -> bool {
 
 pub fn heal() -> String {
     let _ = Command::new("rm")
-        .arg("-f")
-        .arg("/var/lib/pacman/db.lck")
-        .status();
+    .arg("-f")
+    .arg("/var/lib/pacman/db.lck")
+    .status();
 
     "removed stale pacman lock".to_string()
+}
+
+pub fn sync_db() -> String {
+    "pacman DB sync triggered".to_string()
+}
+
+pub fn reinstall_base() -> String {
+    "base packages reinstall triggered".to_string()
 }

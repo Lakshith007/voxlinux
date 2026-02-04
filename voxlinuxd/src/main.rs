@@ -1,51 +1,124 @@
-mod health;
+mod core;
 mod systemd;
-mod pacman;
+mod health;
 mod state;
+mod predictive;
 mod explain;
+mod pacman;
+mod system_state;
+mod probe;
+mod healing_level;
+mod verifier;
 
-use state::HealState;
+use std::thread;
+use std::time::Duration;
+use core::heal_gate::healing_allowed;
+use core::{detector, classifier, policy, reporter};
+use core::opinion::Opinion;
+use core::confidence_eval::evaluate;
+use core::confidence::Confidence;
+use crate::core::reporter::ObserverReport;
 
 fn main() {
-    println!("voxlinuxd: self-healing engine started");
-
-    let boot_mode = std::env::var("INVOCATION_ID").is_ok();
-    let mut heal_state = HealState::load();
-
-    if boot_mode {
-        println!("voxlinuxd: boot-time recovery mode active");
-    }
+    println!("voxlinuxd: observe-only mode started");
 
     loop {
-        // Reconcile persistent state
-        let failed_services = health::failed_services();
-        heal_state.reconcile_with_systemd(&failed_services);
+        // ===============================
+        // 1️⃣ Core detection pipeline
+        // ===============================
+        let detections = detector::scan();
+        let report = ObserverReport::collect();
 
-        // Boot-time: pacman recovery has highest priority
-        if pacman::pacman_broken() {
-            let action = pacman::heal();
-            explain::report("pacman", &action);
+        for d in detections {
+            let classified = classifier::classify(d);
+            let filtered = policy::apply_policy(classified);
+            reporter::emit(&filtered);
+        }
 
-            if boot_mode {
-                break; // run once at boot
+        // ===============================
+        // 2️⃣ Advisory opinions
+        // ===============================
+        let health_op = health::assess();
+        let systemd_op = systemd::assess();
+
+        // ===============================
+        // 3️⃣ Confidence evaluation
+        // ===============================
+        let report = ObserverReport::collect();
+
+        let confidence = evaluate(
+            &health_op,
+            &systemd_op,
+            report.confidence,
+        );
+
+
+        println!(
+            "[CONFIDENCE] health={:?}, systemd={:?} → {:?}",
+            health_op, systemd_op, confidence
+        );
+
+        // ===============================
+        // 4️⃣ Human-readable output
+        // ===============================
+        match &health_op {
+            Opinion::Ok => {}
+            Opinion::Degraded { reason } => {
+                println!("[WARN] health → {}", reason);
+            }
+            Opinion::Broken { reason } => {
+                println!("[CRITICAL] health → {}", reason);
             }
         }
 
-        // systemd healing
-        match health::check() {
-            Some(service) => {
-                if heal_state.should_retry(&service) {
-                    let action = systemd::heal(&service);
-                    explain::report(&service, &action);
-                }
+        match &systemd_op {
+            Opinion::Ok => {}
+            Opinion::Degraded { reason } => {
+                println!("[WARN] systemd → {}", reason);
             }
-            None => {}
+            Opinion::Broken { reason } => {
+                println!("[CRITICAL] systemd → {}", reason);
+            }
         }
 
-        if boot_mode {
-            break; // boot recovery runs once
+        // ===============================
+        // 5️⃣ Healing gate (observe-only)
+        // ===============================
+        if confidence == Confidence::High {
+            println!("[HEAL-GATE] Eligible for healing (BLOCKED for now)");
+        } else {
+            println!("[SAFE] Healing blocked (confidence: {:?})", confidence);
         }
 
-        std::thread::sleep(std::time::Duration::from_secs(5));
+        let report = ObserverReport::collect();
+
+        let confidence = evaluate(
+            &health_op,
+            &systemd_op,
+            report.confidence,
+        );
+
+        if healing_allowed(
+            &health_op,
+            &systemd_op,
+            confidence,
+            report.boot_context,
+        ) {
+            println!(
+                "[HEAL-CANDIDATE] Eligible for healing (confidence: {:?})",
+                     confidence
+            );
+        } else {
+            println!(
+                "[SAFE] Healing blocked (boot={:?}, confidence={:?})",
+                     report.boot_context,
+                     confidence
+            );
+        }
+
+
+        thread::sleep(Duration::from_secs(60));
+
+
     }
 }
