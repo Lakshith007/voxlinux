@@ -7,4 +7,7 @@ pub mod confidence;
 pub mod confidence_eval;
 // src/core/mod.rs
 pub mod heal_gate;
+// src/core/mod.rs
+pub mod deferred;
+pub mod healer;
 
