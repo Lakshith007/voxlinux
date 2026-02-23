@@ -84,7 +84,7 @@ fn collect_failed_units() -> Vec<String> {
 }
 
 pub fn emit_repair_plans(plans: &[RepairPlan]) {
-    let dir = "/tmp/voxlinux/plans";
+    let dir = "/run/voxlinux/plans";
     let _ = std::fs::create_dir_all(dir);
 
     for plan in plans {
