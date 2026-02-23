@@ -10,4 +10,4 @@ pub mod heal_gate;
 // src/core/mod.rs
 pub mod deferred;
 pub mod healer;
-
+pub mod repair_builder;

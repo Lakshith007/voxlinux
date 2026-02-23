@@ -1,17 +1,14 @@
 use crate::core::confidence::Confidence;
 use crate::core::opinion::Opinion;
-use crate::core::reporter::ObserverConfidence;
 
 pub fn evaluate(
     health: &Opinion,
     systemd: &Opinion,
-    observer_confidence: ObserverConfidence,
+    observer_confidence: Confidence,
 ) -> Confidence {
     let engine_confidence = evaluate_engine_confidence(health, systemd);
 
-    let observer_cap: Confidence = observer_confidence.into();
-
-    engine_confidence.min(observer_cap)
+    engine_confidence.min(observer_confidence)
 }
 
 fn evaluate_engine_confidence(

@@ -4,12 +4,6 @@ pub enum Confidence {
     Medium,
     High,
 }
-pub enum ObserverConfidence {
-    Low,
-    Medium,
-    High,
-}
-
 
 impl Confidence {
     pub fn min(self, other: Confidence) -> Confidence {

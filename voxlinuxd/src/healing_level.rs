@@ -1,8 +1,7 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HealingLevel {
-    L1,
-    L2,
-    L3,
-    L4,
+    ObserveOnly,      // Stage 0
+    RuntimeSafe,      // Stage 1
+    AssistedRepair,   // Stage 2
 }
 
