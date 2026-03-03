@@ -42,39 +42,7 @@ fn init_runtime_dirs() {
     .expect("Failed to set permissions on /run/voxlinux");
 }
 
-fn notify_with_action(plan_id: &str, explanation: &str) {
-    let user = std::env::var("SUDO_USER").unwrap_or_else(|_| "lakshith".into());
 
-    let mut child = std::process::Command::new("sudo")
-    .arg("-u")
-    .arg(&user)
-    .arg("notify-send")
-    .arg("VoxLinux")
-    .arg(format!(
-        "System degraded.\nRecommended repair:\n{}",
-        plan_id
-    ))
-    .arg("--action=explain=Explain")
-    .stdout(std::process::Stdio::piped())
-    .spawn()
-    .unwrap();
-
-    if let Some(mut stdout) = child.stdout.take() {
-        use std::io::Read;
-        let mut output = String::new();
-        stdout.read_to_string(&mut output).ok();
-
-        if output.contains("explain") {
-            let _ = std::process::Command::new("sudo")
-            .arg("-u")
-            .arg(&user)
-            .arg("notify-send")
-            .arg("AI Explanation")
-            .arg(explanation)
-            .status();
-        }
-    }
-}
 fn main() {
 
     let mut healing_level = HealingLevel::AssistedRepair;
@@ -199,28 +167,6 @@ fn main() {
 
                 for plan in &plans {
                     reporter::print_plan_summary(plan);
-                }
-
-                if let Some(ai) = ai_advisor::generate_ai_advisory(plans.clone()) {
-                    if let Some(rec) = ai.recommended.clone() {
-
-                        let explanation = format!(
-                            "Reasoning:\n\n• {}\n\nCaution:\n• {}",
-                            ai.reasoning.join("\n• "),
-                                                  ai.cautions.join("\n• ")
-                        );
-
-                        let user = std::env::var("SUDO_USER").unwrap_or_else(|_| "lakshith".into());
-
-                        let _ = Command::new("sudo")
-                        .arg("-u")
-                        .arg(user)
-                        .arg("intentctl")
-                        .arg("notify")
-                        .arg(rec)
-                        .arg(explanation)
-                        .spawn();
-                    }
                 }
             }
         }

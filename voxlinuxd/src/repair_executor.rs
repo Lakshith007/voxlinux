@@ -5,6 +5,7 @@ use std::process::Command;
 use crate::repair_plan::{RepairPlan, RiskLevel};
 use sha2::{Sha256, Digest};
 use hex;
+use std::fs;
 
 fn compute_hash(plan: &RepairPlan) -> String {
     let mut hasher = Sha256::new();
@@ -108,6 +109,10 @@ pub fn apply_plan(plan: RepairPlan) {
     println!("[EXECUTOR] Plan executed successfully.");
 
     let plan_path = format!("/run/voxlinux/plans/{}.json", plan.id);
+    let _ = fs::remove_file(&plan_path);
+    println!("[EXECUTOR] Plan file removed.");
+
+
 
     match std::fs::remove_file(&plan_path) {
         Ok(_) => println!("[EXECUTOR] Removed plan file {}", plan.id),
