@@ -1,8 +1,7 @@
 use std::path::Path;
 use std::process::Command;
 use crate::repair_plan::{RepairPlan, RiskLevel};
-use crate::explain::ExplainBlock;
-
+use crate::explain::{ExplainBlock, ExplainCategory};
 
 pub fn pacman_broken() -> bool {
     Path::new("/var/lib/pacman/db.lck").exists()
@@ -33,33 +32,38 @@ pub fn pacman_lock_repair_plan(
         return None;
     }
 
-    Some(RepairPlan {
-        issue: "pacman database is locked and inconsistent".into(),
-         id: "pacman-fix".into(),
-         risk: RiskLevel::Medium,
-         confidence_high: true,
-         reversible: true,
-         requires_reboot: false,
-         actions: vec![
-             "rm -f /var/lib/pacman/db.lck".into(),
-         "pacman -Syy".into(),
-         ],
-         explain: vec![
-             ExplainBlock {
-                 level: 1,
-                 title: "What happened",
-                 body: "A previous pacman process exited unexpectedly, leaving a stale lock file.",
-             },
-         ExplainBlock {
-             level: 2,
-             title: "Why this is safe",
-             body: "No pacman process is currently running. Only the lock file will be removed.",
-         },
-         ExplainBlock {
-             level: 3,
-             title: "Exact actions",
-             body: "rm -f /var/lib/pacman/db.lck\npacman -Syy",
-         },
-         ],
-    })
+    let mut plan = RepairPlan {
+        id: "pacman-lock".into(), // or your existing ID logic
+        issue: "pacman database lock detected".into(),
+        risk: RiskLevel::Medium,
+        confidence_high: false, // or your logic
+        reversible: true,
+        requires_reboot: false,
+        actions: vec![
+            "rm -f /var/lib/pacman/db.lck".into(),
+            "pacman -Sy".into(),
+        ],
+        explain: vec![
+            ExplainBlock {
+                level: 1,
+                category: ExplainCategory::WhatHappened,
+                content: "A previous pacman process exited unexpectedly, leaving a stale lock file.".into(),
+            },
+            ExplainBlock {
+                level: 2,
+                category: ExplainCategory::WhySafe,
+                content: "No pacman process is currently running. Only the lock file will be removed.".into(),
+            },
+            ExplainBlock {
+                level: 3,
+                category: ExplainCategory::WhatWillExecute,
+                content: "rm -f /var/lib/pacman/db.lck\npacman -Sy".into(),
+            },
+        ],
+        integrity_hash: String::new(),
+    };
+
+    plan.integrity_hash = plan.compute_hash();
+
+    Some(plan)
 }

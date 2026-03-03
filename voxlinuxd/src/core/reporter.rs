@@ -3,6 +3,7 @@ use crate::state::BootContext;
 use crate::core::detector::detect_boot_context;
 use crate::core::confidence::Confidence;
 use crate::repair_plan::RepairPlan;
+use crate::explain::{ExplainBlock, ExplainCategory};
 
 use std::process::Command;
 use std::fs;
@@ -85,7 +86,11 @@ fn collect_failed_units() -> Vec<String> {
 
 pub fn emit_repair_plans(plans: &[RepairPlan]) {
     let dir = "/run/voxlinux/plans";
-    let _ = std::fs::create_dir_all(dir);
+
+    if let Err(e) = std::fs::create_dir_all(dir) {
+        eprintln!("[ERROR] failed to create plan directory: {}", e);
+        return;
+    }
 
     for plan in plans {
         let path = format!("{}/{}.json", dir, plan.id);
@@ -95,13 +100,31 @@ pub fn emit_repair_plans(plans: &[RepairPlan]) {
                 if let Err(e) = std::fs::write(&path, json) {
                     eprintln!("[ERROR] failed to write plan {}: {}", plan.id, e);
                 } else {
-                    println!("[PLAN] {} → {}", plan.id, path);
+                    println!("[PLAN] saved → {}", path);
                 }
             }
             Err(e) => {
                 eprintln!("[ERROR] failed to serialize plan {}: {}", plan.id, e);
             }
         }
+    }
+}
+
+pub fn print_explanation(plan: &RepairPlan, level: u8) {
+    println!("\nExplanation (Level {}):", level);
+
+    for block in plan.explain.iter().filter(|b| b.level <= level) {
+        let label = match block.category {
+            ExplainCategory::WhatHappened => "What happened",
+            ExplainCategory::WhyDetected => "Why detected",
+            ExplainCategory::WhySafe => "Why safe",
+            ExplainCategory::RiskAnalysis => "Risk analysis",
+            ExplainCategory::WhatWillExecute => "What will execute",
+            ExplainCategory::Preconditions => "Preconditions",
+            ExplainCategory::WhyBlocked => "Why blocked",
+        };
+
+        println!("\n{}:\n{}", label, block.content);
     }
 }
 

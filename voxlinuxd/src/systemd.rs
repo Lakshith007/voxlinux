@@ -13,58 +13,67 @@ pub fn is_active(_service: &str) -> bool {
     true
 }
 
+const CORE_UNITS: &[&str] = &[
+    "basic.target",
+"sysinit.target",
+"multi-user.target",
+"graphical.target",
+"systemd-journald.service",
+"systemd-logind.service",
+"systemd-udevd.service",
+"dbus.service",
+];
 
 pub fn assess() -> Opinion {
     let output = Command::new("systemctl")
-    .arg("--failed")
-    .arg("--no-legend")
+    .args(["list-units", "--failed", "--no-legend"])
     .output();
 
     let output = match output {
-        Ok(o) => o,
-        Err(_) => {
-            return Opinion::Broken {
-                reason: "Unable to query systemd state".to_string(),
-            };
-        }
+        Ok(o) if o.status.success() => o,
+        _ => return Opinion::Broken {
+            reason: "Unable to query systemd state".into(),
+        },
     };
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
+    let failed_units: Vec<String> = String::from_utf8_lossy(&output.stdout)
+    .lines()
+    .filter_map(|line| {
+        let mut parts = line.split_whitespace();
+        let first = parts.next()?;
 
-    // No failed units at all
-    if stdout.trim().is_empty() {
+        if first == "●" {
+            parts.next().map(|s| s.to_string())
+        } else {
+            Some(first.to_string())
+        }
+    })
+    .collect();
+
+    if failed_units.is_empty() {
         return Opinion::Ok;
     }
 
-    // Analyze failures
-    let mut critical = Vec::new();
-    let mut ignorable = Vec::new();
+    // Separate core vs non-core failures
+    let core_failed: Vec<&String> = failed_units
+    .iter()
+    .filter(|u| CORE_UNITS.contains(&u.as_str()))
+    .collect();
 
-    for line in stdout.lines() {
-        if line.contains("getty@")
-            || line.contains("serial-getty@")
-            || line.contains("bluetooth.service")
-            || line.contains("cups.service")
-            {
-                ignorable.push(line);
-            } else {
-                critical.push(line);
-            }
-    }
-
-    if !critical.is_empty() {
+    if !core_failed.is_empty() {
         return Opinion::Broken {
             reason: format!(
                 "Critical systemd units failed: {}",
-                critical.len()
+                core_failed.len()
             ),
         };
     }
 
+    // Non-core services failed → degraded only
     Opinion::Degraded {
         reason: format!(
-            "Non-critical systemd units failed: {}",
-            ignorable.len()
+            "Non-critical services failed: {}",
+            failed_units.len()
         ),
     }
 }

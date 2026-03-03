@@ -1,5 +1,3 @@
 [workspace]
-members = [
-    "voxlinuxd",
-    "intentctl"
-]
+resolver = "3"
+members = ["voxlinux", "voxlinuxd", "intentctl"]

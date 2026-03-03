@@ -11,3 +11,4 @@ pub mod heal_gate;
 pub mod deferred;
 pub mod healer;
 pub mod repair_builder;
+pub mod ai_advisor;

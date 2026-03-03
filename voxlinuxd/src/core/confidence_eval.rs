@@ -1,24 +1,28 @@
 use crate::core::confidence::Confidence;
 use crate::core::opinion::Opinion;
+use crate::state::BootContext;
 
 pub fn evaluate(
     health: &Opinion,
     systemd: &Opinion,
-    observer_confidence: Confidence,
-) -> Confidence {
-    let engine_confidence = evaluate_engine_confidence(health, systemd);
-
-    engine_confidence.min(observer_confidence)
-}
-
-fn evaluate_engine_confidence(
-    health: &Opinion,
-    systemd: &Opinion,
+    observer_conf: Confidence,
 ) -> Confidence {
     match (health, systemd) {
-        (Opinion::Ok, Opinion::Ok) => Confidence::High,
-        (Opinion::Broken { .. }, _) |
         (_, Opinion::Broken { .. }) => Confidence::Low,
-        _ => Confidence::Medium,
+
+        (Opinion::Broken { .. }, _) => Confidence::Low,
+
+        // If only degraded and boot stable → keep High
+        (Opinion::Ok, Opinion::Degraded { .. }) => {
+            if observer_conf == Confidence::High {
+                Confidence::High
+            } else {
+                Confidence::Medium
+            }
+        }
+
+        (Opinion::Degraded { .. }, Opinion::Ok) => Confidence::Medium,
+
+        _ => observer_conf,
     }
 }

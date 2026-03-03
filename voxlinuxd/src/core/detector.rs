@@ -4,6 +4,7 @@ use crate::state::BootContext;
 
 
 
+
 #[derive(Debug)]
 pub struct RawDetection {
     pub unit: String,
@@ -11,32 +12,43 @@ pub struct RawDetection {
 }
 
 pub fn detect_boot_context() -> BootContext {
-    if in_initramfs() {
-        return BootContext::EarlyBoot;
-    }
+    // Check actual system running state
+    if let Ok(out) = Command::new("systemctl")
+        .arg("is-system-running")
+        .output()
+        {
+            let status = String::from_utf8_lossy(&out.stdout).trim().to_string();
 
-    if !pid1_is_systemd() {
-        return BootContext::Unknown;
-    }
+            match status.as_str() {
+                "running" => {
+                    // Now check target
+                    if let Ok(target_out) = Command::new("systemctl")
+                        .arg("get-default")
+                        .output()
+                        {
+                            let target =
+                            String::from_utf8_lossy(&target_out.stdout);
 
-    if rescue_target_active() {
-        return BootContext::Rescue;
-    }
+                            if target.contains("graphical.target") {
+                                return BootContext::Graphical;
+                            }
 
-    match systemd_state() {
-        Some(state) => match state.as_str() {
-            "initializing" | "starting" => BootContext::EarlyUserspace,
-            "running" | "degraded" => {
-                if graphical_target_active() {
-                    BootContext::Graphical
-                } else {
-                    BootContext::MultiUser
+                            if target.contains("multi-user.target") {
+                                return BootContext::MultiUser;
+                            }
+                        }
+
+                        return BootContext::MultiUser;
                 }
+
+                "starting" => return BootContext::EarlyBoot,
+                "degraded" => return BootContext::MultiUser,
+                "maintenance" => return BootContext::Rescue,
+                _ => {}
             }
-            _ => BootContext::Unknown,
-        },
-        None => BootContext::Unknown,
-    }
+        }
+
+        BootContext::Unknown
 }
 
 /* --- helpers --- */

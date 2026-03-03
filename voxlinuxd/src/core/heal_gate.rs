@@ -6,22 +6,32 @@ pub fn healing_allowed(
     health: &Opinion,
     systemd: &Opinion,
     confidence: Confidence,
-    boot_context: BootContext,
+    boot: BootContext,
 ) -> bool {
-    // 🔒 HARD BOOT SAFETY RULE
-    if boot_context != BootContext::Graphical {
+
+    // Never heal in early boot phases
+    match boot {
+        BootContext::EarlyBoot |
+        BootContext::EarlyUserspace |
+        BootContext::Rescue |
+        BootContext::Unknown => return false,
+        _ => {}
+    }
+
+    // Never heal if core system integrity is broken
+    if matches!(systemd, Opinion::Broken { .. }) {
         return false;
     }
 
-    // 🔒 TRUST RULE
+    // Never heal if global health is broken
+    if matches!(health, Opinion::Broken { .. }) {
+        return false;
+    }
+
+    // Require high confidence for autonomy
     if confidence != Confidence::High {
         return false;
     }
 
-    // 🔒 SYSTEM INTEGRITY RULES
-    match (health, systemd) {
-        (Opinion::Broken { .. }, _) => false,
-        (_, Opinion::Broken { .. }) => false,
-        _ => true,
-    }
+    true
 }

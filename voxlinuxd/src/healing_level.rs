@@ -2,6 +2,7 @@
 pub enum HealingLevel {
     ObserveOnly,      // Stage 0
     RuntimeSafe,      // Stage 1
-    AssistedRepair,   // Stage 2
+    AssistedRepair,
+    AutonomousRepair,// Stage 2
 }
 
