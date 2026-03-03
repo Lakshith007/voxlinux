@@ -39,7 +39,10 @@ pub struct AIAdvisory {
 }
 
 pub fn generate_ai_advisory(plans: Vec<RepairPlan>) -> Option<AIAdvisory> {
-    let api_key = env::var("VOXLINUX_AI_KEY").ok()?;
+    println!("[AI DEBUG] generate_ai_advisory() CALLED");
+
+    let api_key = env::var("GROQ_API_KEY").ok()?;
+    println!("[AI DEBUG] API key detected");
 
     let plan_summary: Vec<_> = plans.iter().map(|p| {
         serde_json::json!({
@@ -49,14 +52,17 @@ pub fn generate_ai_advisory(plans: Vec<RepairPlan>) -> Option<AIAdvisory> {
                           "reversible": p.reversible,
                           "requires_reboot": p.requires_reboot,
                           "confidence_high": p.confidence_high,
-                          "actions": p.actions,
-                          "explain": p.explain
+                          "actions": p.actions
         })
     }).collect();
 
     let prompt = format!(
         "You are an advisory AI for a self-healing Linux system.
-        Analyze the following repair plans and return STRICT JSON only in this format:
+        Return ONLY valid raw JSON.
+        Do NOT include markdown.
+        Do NOT include explanations outside JSON.
+
+        Return exactly this format:
 
         {{
         \"recommended\": \"plan-id\",
@@ -72,14 +78,14 @@ serde_json::to_string_pretty(&plan_summary).unwrap()
     );
 
     let request = AIRequest {
-        model: "llama-3.3-70b-versatile".into(),
+        model: "openai/gpt-oss-120b".to_string(),
         messages: vec![
             Message {
-                role: "system".into(),
-                content: "You must return valid JSON only. No explanation outside JSON.".into(),
+                role: "system".to_string(),
+                content: "Return JSON only.".to_string(),
             },
             Message {
-                role: "user".into(),
+                role: "user".to_string(),
                 content: prompt,
             },
         ],
@@ -97,20 +103,33 @@ serde_json::to_string_pretty(&plan_summary).unwrap()
         Ok(mut resp) => {
             let text = resp.text().unwrap_or_default();
 
+            println!("[AI DEBUG] RAW RESPONSE:\n{}\n", text);
 
-            return serde_json::from_str::<AIResponse>(&text)
-            .ok()
-            .and_then(|parsed| {
-                parsed.choices.first().and_then(|c| {
-                    serde_json::from_str::<AIAdvisory>(&c.message.content).ok()
-                })
-            });
+            let parsed: AIResponse = serde_json::from_str(&text).ok()?;
+
+            let content = &parsed.choices.first()?.message.content;
+
+            println!("[AI DEBUG] MESSAGE CONTENT:\n{}\n", content);
+
+            // 🔥 Extract JSON safely even if model adds extra text
+            let start = content.find('{')?;
+            let end = content.rfind('}')?;
+            let json_slice = &content[start..=end];
+
+            match serde_json::from_str::<AIAdvisory>(json_slice) {
+                Ok(advisory) => {
+                    println!("[AI DEBUG] AI JSON parsed successfully");
+                    Some(advisory)
+                }
+                Err(e) => {
+                    println!("[AI DEBUG] Failed to parse AI JSON: {}", e);
+                    None
+                }
+            }
         }
         Err(e) => {
-            println!("AI REQUEST FAILED: {}", e);
-            return None;
+            println!("[AI DEBUG] AI REQUEST FAILED: {}", e);
+            None
         }
     }
-
-    println!("KEY LENGTH: {}", api_key.len());
 }

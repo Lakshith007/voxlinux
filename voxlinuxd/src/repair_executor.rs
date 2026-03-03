@@ -106,4 +106,11 @@ pub fn apply_plan(plan: RepairPlan) {
 
     log_event(&format!("PLAN END {}", plan.id));
     println!("[EXECUTOR] Plan executed successfully.");
+
+    let plan_path = format!("/run/voxlinux/plans/{}.json", plan.id);
+
+    match std::fs::remove_file(&plan_path) {
+        Ok(_) => println!("[EXECUTOR] Removed plan file {}", plan.id),
+        Err(e) => println!("[EXECUTOR] Failed to remove plan file: {}", e),
+    }
 }
