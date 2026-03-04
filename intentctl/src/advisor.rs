@@ -1,5 +1,5 @@
 use serde::Serialize;
-use voxlinuxd::repair_plan::{RepairPlan, RiskLevel};
+use voxlinux::repair_plan::{RepairPlan, RiskLevel};
 
 #[derive(Debug, Serialize)]
 pub struct AdvisoryItem {

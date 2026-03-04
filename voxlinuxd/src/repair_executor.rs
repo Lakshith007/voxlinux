@@ -2,7 +2,7 @@ use std::fs::{OpenOptions, create_dir_all};
 use std::io::Write;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::process::Command;
-use crate::repair_plan::{RepairPlan, RiskLevel};
+use voxlinux::repair_plan::{RepairPlan, RiskLevel};
 use sha2::{Sha256, Digest};
 use hex;
 use std::fs;
@@ -109,8 +109,6 @@ pub fn apply_plan(plan: RepairPlan) {
     println!("[EXECUTOR] Plan executed successfully.");
 
     let plan_path = format!("/run/voxlinux/plans/{}.json", plan.id);
-    let _ = fs::remove_file(&plan_path);
-    println!("[EXECUTOR] Plan file removed.");
 
 
 

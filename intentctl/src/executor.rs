@@ -3,11 +3,14 @@ use std::fs::{OpenOptions, create_dir_all};
 use std::io::Write;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::process::Command;
-use voxlinuxd::repair_plan::{RepairPlan, RiskLevel};
+
+use voxlinux::repair_plan::{RepairPlan, RiskLevel};
+
 use sha2::{Sha256, Digest};
 use hex;
 
 fn compute_hash(plan: &RepairPlan) -> String {
+
     let mut hasher = Sha256::new();
 
     hasher.update(&plan.id);
@@ -31,6 +34,7 @@ fn compute_hash(plan: &RepairPlan) -> String {
 }
 
 fn verify_integrity(plan: &RepairPlan) -> bool {
+
     let original_hash = plan.integrity_hash.clone();
 
     let mut cloned = plan.clone();
@@ -46,6 +50,7 @@ fn ensure_root() -> bool {
 }
 
 fn log_event(message: &str) {
+
     let _ = create_dir_all("/tmp/voxlinux");
 
     let ts = SystemTime::now()
@@ -62,64 +67,88 @@ fn log_event(message: &str) {
         }
 }
 
-
 pub fn apply_plan(plan: RepairPlan, force: bool, dry_run: bool) {
 
     if !verify_integrity(&plan) {
+
         println!("❌ Plan integrity verification failed.");
         println!("The repair plan may have been tampered with.");
+
+        log_event(&format!("INTEGRITY FAIL {}", plan.id));
+
         return;
     }
 
     if !ensure_root() {
+
         println!("Error: intentctl repair apply must be run as root.");
+
+        log_event("DENIED non-root execution");
+
         return;
     }
 
     if plan.risk == RiskLevel::High && !force {
+
         println!("High-risk plan requires --yes flag.");
+
+        log_event("BLOCKED high risk plan");
+
         return;
     }
 
     if !plan.confidence_high && !force {
+
         println!("Plan confidence is not high. Use --yes to force.");
+
+        log_event("BLOCKED low confidence plan");
+
         return;
     }
 
     log_event(&format!("PLAN START {}", plan.id));
 
-    for action in plan.actions {
+    for action in &plan.actions {
+
         if dry_run {
-            println!("Would execute: {}", action);
+
+            println!("DRY RUN → {}", action);
+
             log_event(&format!("DRY RUN {}", action));
+
             continue;
         }
 
         println!("Executing: {}", action);
+
         log_event(&format!("EXEC {}", action));
 
-        let parts: Vec<&str> = action.split_whitespace().collect();
-        if parts.is_empty() {
-            continue;
-        }
-
-        let status = Command::new(parts[0])
-        .args(&parts[1..])
+        let status = Command::new("sh")
+        .arg("-c")
+        .arg(action)
         .status();
 
         match status {
+
             Ok(s) if s.success() => {
+
                 println!("✔ Success");
-                log_event("RESULT success");
+
+                log_event(&format!("RESULT success action={}", action));
             }
+
             _ => {
+
                 println!("✖ Failed. Aborting.");
-                log_event("RESULT failure");
+
+                log_event(&format!("RESULT failure action={}", action));
+
                 return;
             }
         }
     }
 
     log_event(&format!("PLAN END {}", plan.id));
+
     println!("\nPlan executed successfully.");
 }

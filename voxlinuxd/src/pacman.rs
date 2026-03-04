@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::process::Command;
-use crate::repair_plan::{RepairPlan, RiskLevel};
-use crate::explain::{ExplainBlock, ExplainCategory};
+use voxlinux::repair_plan::{RepairPlan, RiskLevel};
+use voxlinux::explain::{ExplainBlock, ExplainCategory};
 
 pub fn pacman_broken() -> bool {
     Path::new("/var/lib/pacman/db.lck").exists()

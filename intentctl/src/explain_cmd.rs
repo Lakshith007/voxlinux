@@ -1,5 +1,5 @@
 use crate::reader::find_plan;
-use voxlinuxd::explain::explain_at_level;
+use voxlinux::explain::explain_at_level;
 
 pub fn explain_plan(id: &str, level: u8) {
     if let Some(plan) = find_plan(id) {

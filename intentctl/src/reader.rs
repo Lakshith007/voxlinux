@@ -1,5 +1,5 @@
 use std::fs;
-use voxlinuxd::repair_plan::RepairPlan;
+use voxlinux::repair_plan::RepairPlan;
 
 const PLAN_DIR: &str = "/run/voxlinux/plans";
 

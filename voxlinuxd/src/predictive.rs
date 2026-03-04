@@ -7,7 +7,7 @@
 //
 // It never executes systemctl directly.
 
-use crate::explain;
+use voxlinux::explain;
 use crate::state;
 use crate::systemd;
 use crate::system_state::SystemState;

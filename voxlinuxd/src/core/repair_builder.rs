@@ -1,8 +1,8 @@
 use crate::core::reporter::ObserverReport;
 use crate::core::opinion::Opinion;
 use crate::core::confidence::Confidence;
-use crate::repair_plan::{RepairPlan, RiskLevel};
-use crate::explain::{ExplainBlock, ExplainCategory};
+use voxlinux::repair_plan::{RepairPlan, RiskLevel};
+use voxlinux::explain::{ExplainBlock, ExplainCategory};
 
 use std::time::{SystemTime, UNIX_EPOCH};
 

@@ -5,24 +5,22 @@ use std::io::Read;
 pub fn show_notification(plan_id: String, explanation: String) {
 
     // 1️⃣ Send initial notification
-    let mut first = Command::new("notify-send")
+    let output = Command::new("notify-send")
     .arg("⚠ VoxLinux detected an issue")
     .arg(format!("Recommended repair: {}", plan_id))
     .arg("--action=ai=🤖 AI Explanation")
     .arg("--print-id")
-    .stdout(Stdio::piped())
-    .spawn()
+    .output()
     .expect("Failed to send notification");
 
-    let mut id = String::new();
+    let notification_id =
+    String::from_utf8_lossy(&output.stdout)
+    .lines()
+    .next()
+    .unwrap_or("")
+    .trim()
+    .to_string();
 
-    if let Some(mut stdout) = first.stdout.take() {
-        stdout.read_to_string(&mut id).ok();
-    }
-
-    first.wait().ok();
-
-    let notification_id = id.lines().next().unwrap_or("").trim().to_string();
 
     if notification_id.is_empty() {
         return;

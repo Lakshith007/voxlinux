@@ -3,28 +3,29 @@ mod systemd;
 mod health;
 mod state;
 mod predictive;
-mod explain;
+
 mod pacman;
 mod system_state;
 mod probe;
 mod healing_level;
 mod verifier;
-mod repair_plan;
+
 mod ipc;
 mod repair_executor;
+
 
 use std::process::Command;
 use std::thread;
 use std::time::Duration;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
-
+use voxlinux::explain::{ExplainBlock, ExplainCategory};
 use core::{detector, classifier, policy, reporter};
 use core::heal_gate::healing_allowed;
 use core::confidence_eval::evaluate;
 use core::opinion::Opinion;
 use core::classifier::{Severity, FailureClass};
-
+use voxlinux::repair_plan::{RepairPlan, RiskLevel};
 use core::ai_advisor;
 use crate::core::repair_builder::build_repair_plans;
 use crate::core::reporter::ObserverReport;
@@ -45,6 +46,7 @@ fn init_runtime_dirs() {
 
 fn main() {
 
+
     let mut healing_level = HealingLevel::AssistedRepair;
     let mut last_notified_issue: Option<String> = None;
     let mut deferred_queue = DeferredHealQueue::default();
@@ -52,6 +54,9 @@ fn main() {
 
 
     init_runtime_dirs();   // FIRST create /run/voxlinux
+
+    let _ = std::fs::remove_dir_all("/run/voxlinux/plans");
+    let _ = std::fs::create_dir_all("/run/voxlinux/plans");
 
     std::thread::spawn(|| {
         ipc::start_ipc_server();
@@ -212,7 +217,7 @@ fn main() {
                 let plans = build_repair_plans(&report, &health_op, &systemd_op);
 
                 for plan in plans {
-                    if plan.risk != crate::repair_plan::RiskLevel::Low {
+                    if plan.risk != voxlinux::repair_plan::RiskLevel::Low {
                         continue;
                     }
 
@@ -238,7 +243,7 @@ fn main() {
                                 println!("[AUTO] Running: {}", action);
                                 let status_ok = std::process::Command::new("sh")
                                 .arg("-c")
-                                .arg(action)
+                                .arg(&action)
                                 .status()
                                 .map(|s| s.success())
                                 .unwrap_or(false);
@@ -274,7 +279,7 @@ fn main() {
                                 println!("[AUTO] Running: {}", action);
                                 let status_ok = std::process::Command::new("sh")
                                 .arg("-c")
-                                .arg(action)
+                                .arg(&action)
                                 .status()
                                 .map(|s| s.success())
                                 .unwrap_or(false);

@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use crate::repair_plan::RepairPlan;
+use voxlinux::repair_plan::RepairPlan;
 use std::env;
 
 
